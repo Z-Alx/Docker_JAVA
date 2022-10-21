@@ -1,0 +1,22 @@
+FROM gradle:7.2-jdk17 AS BUILD
+ENV APP_HOME=/usr/app/
+WORKDIR $APP_HOME
+COPY build.gradle.kts settings.gradle.kts $APP_HOME
+
+COPY gradle $APP_HOME/gradle/
+COPY --chown=gradle:gradle . /home/gradle/src/
+USER root
+RUN chown -R gradle /home/gradle/src
+
+COPY . .
+RUN gradle build -x test
+
+FROM bellsoft/liberica-openjre-alpine-musl:17
+ENV APP_HOME=/usr/app/
+ENV ARTIFACT_NAME=c3sdcim-0.0.1.jar
+
+WORKDIR $APP_HOME
+COPY --from=BUILD /usr/app/build/libs/${ARTIFACT_NAME} .
+
+EXPOSE 8080
+ENTRYPOINT exec java -jar ${ARTIFACT_NAME} -Dspring.profiles.active=prod
